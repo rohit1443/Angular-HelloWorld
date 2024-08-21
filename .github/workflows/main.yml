@@ -42,13 +42,24 @@ jobs:
         run: |
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
             sudo su
+            # Ensure the application directory exists
+            mkdir -p /home/${EC2_USER}/angular-app/
             cd /home/${EC2_USER}/angular-app/
+
+            # Check if npm is installed and install if necessary
             if ! command -v npm &> /dev/null; then
               curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
+
             sudo npm install -g @angular/cli
-            nohup ng serve --host 0.0.0.0 --port 4200 > /tmp/ng-serve.log 2>&1 &
+            
+            # Set correct permissions for the log file directory
+            sudo mkdir -p /var/log/angular
+            sudo chown ${EC2_USER}:${EC2_USER} /var/log/angular
+            
+            # Run the Angular application
+            nohup ng serve --host 0.0.0.0 --port 4200 > /var/log/angular/ng-serve.log 2>&1 &
             echo "Angular application is deployed and running."
           EOF
         env:
