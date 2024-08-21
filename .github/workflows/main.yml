@@ -62,5 +62,5 @@ jobs:
         sudo npm install -g http-server
 
         # Serve the Angular app on port 4200
-        http-server dist/ -p 4200
+        http-server dist/ -p 4200 
         EOF
