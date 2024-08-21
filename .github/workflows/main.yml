@@ -42,7 +42,7 @@ jobs:
 
       - name: Copy built files to EC2
         run: |
-          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
+          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/ubuntu/angular-app/
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
