@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - '**'  # Triggers on any file change, including the main.yml
+      - '**'
 
 jobs:
   build-and-deploy:
@@ -18,27 +18,24 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # Specify the version of Node.js
+          node-version: '16'
 
       - name: Install dependencies
         run: npm install
 
       - name: Build Angular app
-        run: npm run build
+        run: npm run build --prod
 
       - name: Copy SSH key
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
-      - name: Deploy Angular App to Nginx
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+      - name: Deploy Angular App
         run: |
+          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-            sudo rm -rf /var/www/html/*
-            sudo mv /home/ubuntu/angular-app/* /var/www/html/
+            sudo mv /home/${EC2_USER}/angular-app/* /var/www/html/
             sudo chown -R www-data:www-data /var/www/html/
             sudo systemctl restart nginx
           EOF
