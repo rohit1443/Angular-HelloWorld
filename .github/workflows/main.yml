@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - '**'
+      - '**'  # Triggers on any file change, including the main.yml
 
 jobs:
   build-and-deploy:
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '16'  # Specify the version of Node.js
 
       - name: Install dependencies
         run: npm install
@@ -31,48 +31,17 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
-      - name: Test SSH connection
-        run: |
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "echo 'SSH connection successful'"
-
-      - name: Check if Nginx is installed and configured
-        id: nginx_check
-        run: |
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "nginx -v" || echo "nginx not installed"
-
-      - name: Install and configure Nginx on EC2 (if needed)
-        if: steps.nginx_check.outputs.nginx == 'nginx not installed'
+      - name: Deploy Angular App to Nginx
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-            sudo apt update
-            sudo apt install -y nginx
+            sudo rm -rf /var/www/html/*
             sudo mv /home/ubuntu/angular-app/* /var/www/html/
             sudo chown -R www-data:www-data /var/www/html/
-            
-            # Create Nginx configuration
-            echo "server {
-                listen 80 default_server;
-                listen [::]:80 default_server;
-
-                server_name _;
-
-                root /var/www/html;
-                index index.html;
-
-                location / {
-                    try_files \$uri \$uri/ /index.html;
-                }
-            }" | sudo tee /etc/nginx/sites-available/default
-
             sudo systemctl restart nginx
           EOF
-
-      - name: Deploy Angular App
-        run: |
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo mv /home/ubuntu/angular-app/* /var/www/html/ && sudo systemctl restart nginx"
 
       - name: Clean up
         run: rm -f /tmp/deploy_key
