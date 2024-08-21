@@ -41,6 +41,7 @@ jobs:
       - name: Deploy on EC2
         run: |
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+            sudo su
             cd /home/ubuntu/angular-app/
             if ! command -v npm &> /dev/null; then
               curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
