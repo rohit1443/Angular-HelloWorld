@@ -4,63 +4,57 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Install Dependencies
-      run: npm install
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
 
-    - name: Build Angular Application
-      run: npm run build --prod
+      - name: Install dependencies
+        run: npm install
 
-    - name: Save SSH Private Key
-      run: |
-        echo "$EC2_SSH_KEY" > /tmp/deploy_key
-        chmod 600 /tmp/deploy_key
+      - name: Build Angular app
+        run: npm run build --prod
 
-    - name: Debugging Information
-      run: |
-        echo "EC2_HOST=${{ secrets.EC2_HOST }}"
-        echo "EC2_USER=${{ secrets.EC2_USER }}"
+      - name: Copy SSH key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
 
-    - name: Test SSH Connection
-      env:
-        EC2_USER: ${{ secrets.EC2_USER }}
-        EC2_HOST: ${{ secrets.EC2_HOST }}
-      run: |
-        ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 $EC2_USER@$EC2_HOST "echo Connection successful"
-      
-    - name: Deploy to EC2
-      env:
-        EC2_USER: ${{ secrets.EC2_USER }}
-        EC2_HOST: ${{ secrets.EC2_HOST }}
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}  # Your private key for SSH
-      run: |
-        # Ensure directory exists on EC2
-        ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-        mkdir -p /home/${EC2_USER}/angular-app
-        EOF
+      - name: Copy built files to EC2
+        run: |
+          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
 
-        # Copy files to EC2 instance
-        scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
+      - name: Deploy on EC2
+        run: |
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+            cd /home/${EC2_USER}/angular-app/
+            if ! command -v npm &> /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+            if ! command -v ng &> /dev/null; then
+              sudo npm install -g @angular/cli
+            fi
+            nohup ng serve --host 0.0.0.0 --port 4200 > /tmp/ng-serve.log 2>&1 &
+            echo "Angular application is deployed and running."
+          EOF
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
 
-        # SSH into EC2 instance and deploy the application
-        ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-        cd /home/${EC2_USER}/angular-app
-        # Install Node.js and Angular CLI if not already installed
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-        sudo npm install -g @angular/cli
-        
-        # Install http-server if not installed
-        sudo npm install -g http-server
-
-        # Serve the Angular app on port 4200
-        http-server dist/ -p 4200 
-        EOF
+      - name: Clean up
+        run: rm -f /tmp/deploy_key
