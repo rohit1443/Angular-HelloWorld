@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # Specify the version of Node.js
+          node-version: '16'
 
       - name: Install dependencies
         run: npm install
@@ -31,31 +31,30 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
-      - name: Deploy to EC2
+      - name: Copy built files to EC2
         run: |
-          # Copy built files to EC2
           scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
-          
-          # SSH into EC2 and deploy
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+
+      - name: Deploy on EC2
+        run: |
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-            # Navigate to application directory
             cd /home/${EC2_USER}/angular-app/
-            
-            # Install Node.js and Angular CLI if not already installed
             if ! command -v npm &> /dev/null; then
               curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
-
             if ! command -v ng &> /dev/null; then
               sudo npm install -g @angular/cli
             fi
-
-            # Start the Angular application
             nohup ng serve --host 0.0.0.0 --port 4200 > /tmp/ng-serve.log 2>&1 &
-            
             echo "Angular application is deployed and running."
           EOF
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
 
       - name: Clean up
         run: rm -f /tmp/deploy_key
