@@ -33,6 +33,7 @@ jobs:
 
       - name: Copy built files to EC2
         run: |
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'mkdir -p /home/${EC2_USER}/angular-app'
           scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -41,25 +42,12 @@ jobs:
       - name: Deploy on EC2
         run: |
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-            sudo su
-            # Ensure the application directory exists
-            mkdir -p /home/${EC2_USER}/angular-app/
             cd /home/${EC2_USER}/angular-app/
-
-            # Check if npm is installed and install if necessary
-            if ! command -v npm &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
-              sudo apt-get install -y nodejs
+            if ! command -v http-server &> /dev/null; then
+              sudo npm install -g http-server
             fi
-
-            sudo npm install -g @angular/cli
-            
-            # Set correct permissions for the log file directory
-            sudo mkdir -p /var/log/angular
-            sudo chown ${EC2_USER}:${EC2_USER} /var/log/angular
-            
-            # Run the Angular application
-            nohup ng serve --host 0.0.0.0 --port 4200 > /var/log/angular/ng-serve.log 2>&1 &
+            # Serve the application using http-server
+            nohup http-server dist/ -p 4200 > /tmp/angular-app.log 2>&1 &
             echo "Angular application is deployed and running."
           EOF
         env:
