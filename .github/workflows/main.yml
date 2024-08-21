@@ -29,19 +29,18 @@ jobs:
         echo "$PRIVATE_KEY" > /tmp/deploy_key
         chmod 600 /tmp/deploy_key
 
+        # Ensure directory exists on EC2
+        ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+        mkdir -p /home/${EC2_USER}/angular-app
+        EOF
+
         # Copy files to EC2 instance
         scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/angular-app/
 
         # SSH into EC2 instance and deploy the application
         ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
         cd /home/${EC2_USER}/angular-app
-        # Run commands to deploy the Angular app
-        # (Optional) Install Node.js and Angular CLI if not already installed
-        # curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        # sudo apt-get install -y nodejs
-        # sudo npm install -g @angular/cli
-        
-        # Optionally, you can start an HTTP server to serve your Angular app
-        npm install -g http-server
-        http-server dist/ -p 8080
-        EOF
+        # Install Node.js and Angular CLI if not already installed
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        sudo npm install -
