@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main  # or any branch you want to trigger the deploy from
+      - main  # or the branch you want to trigger the deploy from
 
 jobs:
   deploy:
@@ -16,7 +16,7 @@ jobs:
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.6.0
       with:
-        ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Deploy to EC2
       run: |
@@ -24,19 +24,22 @@ jobs:
           # Switch to root user
           sudo su
           # Navigate to your project directory
-          cd /path/to/your/angular/project
+          cd /home/ubuntu/angular-project
 
           # Pull the latest code
           git pull origin main
+          echo "latest code was fetched"
+          cd Angular-HelloWorld
 
           # Install dependencies and build
           npm install
           ng build
-          ng serve
+          ng serve 
+
           # Optional: Restart the application or server
           # You might need to set up a service manager like PM2 for this
         EOF
       env:
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-        HOST: ${{ secrets.EC2_HOST }}
-        USER: ${{ secrets.EC2_USER }}
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+        EC2_USER: ${{ secrets.EC2_USER }}
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
