@@ -1,58 +1,42 @@
-name: Deploy Angular App to EC2
+name: Deploy to EC2
 
 on:
   push:
     branches:
-      - main
-    paths:
-      - '**'
+      - main  # or any branch you want to trigger the deploy from
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.6.0
+      with:
+        ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-      - name: Install dependencies
-        run: npm install
+    - name: Deploy to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Switch to root user
+          sudo su
+          # Navigate to your project directory
+          cd /path/to/your/angular/project
 
-      - name: Build Angular app
-        run: npm run build -- --configuration production
+          # Pull the latest code
+          git pull origin main
 
-      - name: Copy SSH key
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-
-      - name: Copy built files to EC2
-        run: |
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'mkdir -p /home/ubuntu/angular-app'
-          scp -i /tmp/deploy_key -o StrictHostKeyChecking=no -r dist/ ${EC2_USER}@${EC2_HOST}:/home/ubuntu/angular-app/
-        env:
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-
-      - name: Deploy on EC2
-        run: |
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-          cd /home/ubuntu/angular-app
-          if ! command -v http-server &> /dev/null; then
-            npm install -g http-server
-          fi
-          cd dist
-          nohup http-server . -p 4200 > /tmp/angular-app.log 2>&1 &
-          echo "Angular application is deployed and running."
-          EOF
-        env:
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-
-      - name: Clean up
-        run: rm -f /tmp/deploy_key
+          # Install dependencies and build
+          npm install
+          ng build
+          ng serve
+          # Optional: Restart the application or server
+          # You might need to set up a service manager like PM2 for this
+        EOF
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ${{ secrets.EC2_USER }}
