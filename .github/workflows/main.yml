@@ -24,7 +24,7 @@ jobs:
         run: npm install
 
       - name: Build Angular app
-        run: npm run build --prod
+        run: npm run build -- --prod
 
       - name: Copy SSH key
         run: |
@@ -42,13 +42,13 @@ jobs:
       - name: Deploy on EC2
         run: |
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-            cd /home/ubuntu/angular-app/
-            if ! command -v http-server &> /dev/null; then
-              npm install -g http-server
-            fi 
-            # Serve the application using http-server
-            nohup http-server . -p 4200 > /tmp/angular-app.log 2>&1 &
-            echo "Angular application is deployed and running."
+          cd /home/ubuntu/angular-app
+          if ! command -v http-server &> /dev/null; then
+            npm install -g http-server
+          fi
+          cd dist
+          nohup http-server . -p 4200 > /tmp/angular-app.log 2>&1 &
+          echo "Angular application is deployed and running."
           EOF
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -56,3 +56,4 @@ jobs:
 
       - name: Clean up
         run: rm -f /tmp/deploy_key
+ 
