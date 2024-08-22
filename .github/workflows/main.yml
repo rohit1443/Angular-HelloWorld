@@ -45,7 +45,7 @@ jobs:
             cd /home/ubuntu/angular-app/
             if ! command -v http-server &> /dev/null; then
               sudo npm install -g http-server
-            fi
+            fi 
             # Serve the application using http-server
             nohup http-server dist/ -p 4200 > /tmp/angular-app.log 2>&1 &
             echo "Angular application is deployed and running."
